@@ -3,6 +3,9 @@ import boto3
 import json
 from typing import Dict, List, Any, Optional
 from agent_utils import create_agent_tools, process_with_agent
+import xml.etree.ElementTree as ET
+from google_maps import get_building_directions_link
+import urllib.parse
 
 # Configure Streamlit page
 st.set_page_config(
@@ -34,13 +37,43 @@ def query_knowledge_base(client, query: str) -> Optional[Dict[str, Any]]:
             },
             retrieveAndGenerateConfiguration={
                 'knowledgeBaseConfiguration': {
-                    'knowledgeBaseId': "Y4NJOU25DB",
+                    'generationConfiguration': {
+                        'promptTemplate': {
+                            'textPromptTemplate': '''You are a question answering agent designed to help the user get to one location to another. The user will provide you with their location and a question. Your job is to answer the user's question using only information from the database as concisely as possible. If the results do not contain information that can answer the question, please state that you could not find an exact answer to the question.
+
+                                                    When asked how to go from one place to another, give detailed instructions and refer to neighboring landmarks to help the user go to the destination.
+
+                                                    If the user does not specify the year and semester, prompt the user if clarification is needed. If the user mentions multiple classes, pick the semester in which they all occur.
+
+                                                    Here are the search results in numbered order:
+                                                    $search_results$
+
+                                                   respond only in the following XML format and do not include any other text:
+                                                    <response>
+                                                    <directions>[your natural language directions to the user]</directions>
+                                                    <bldg_code>[Building code as a single uppercase letter or code]</bldg_code>
+                                                    </response>'''
+                        }
+                    },
+                    'knowledgeBaseId': 'Y4NJOU25DB' ,
                     'modelArn': 'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0',
                 },
                 'type': 'KNOWLEDGE_BASE'
             }
         )
-        return response
+        # print(response['output']['text'])
+        xml_string = response['output']['text']
+        root = ET.fromstring(xml_string)
+        directions = root.find("directions").text
+        bldg_code = root.find("bldg_code").text
+        print(bldg_code)
+
+        bldg_link = get_building_directions_link(bldg_code)
+        print(bldg_link)
+
+        frontend_output = f"{directions} \n\nDirections to building {bldg_code}: {bldg_link}"
+
+        return {"output": {"text": frontend_output}}
     except Exception as e:
         st.error(f"Error querying knowledge base: {str(e)}")
         return None
