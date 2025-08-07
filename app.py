@@ -4,7 +4,7 @@ import json
 from typing import Dict, List, Any, Optional
 from agent_utils import create_agent_tools, process_with_agent
 import xml.etree.ElementTree as ET
-from google_maps import get_building_directions_link
+from google_maps import get_building_directions_link, get_building_directions_link_by_name
 import urllib.parse
 
 # Configure Streamlit page
@@ -45,13 +45,16 @@ def query_knowledge_base(client, query: str) -> Optional[Dict[str, Any]]:
 
                                                     If the user does not specify the year and semester, prompt the user if clarification is needed. If the user mentions multiple classes, pick the semester in which they all occur.
 
+                                                    If the user asks about several classes, query the knowledge base for each class separately.
+
                                                     Here are the search results in numbered order:
                                                     $search_results$
 
                                                    respond only in the following XML format and do not include any other text:
                                                     <response>
-                                                    <directions>[your natural language directions to the user]</directions>
-                                                    <bldg_code>[Building code as a single uppercase letter or code]</bldg_code>
+                                                    <directions>[your natural language directions to the user. if telling the user to exit a building, specify "exit through main entry"]</directions>
+                                                    <origin_code>[Origin location code as a single uppercase letter or code]</origin_code>
+                                                    <bldg_code>[Destination building code as a single uppercase letter or code]</bldg_code>
                                                     </response>'''
                         }
                     },
@@ -65,13 +68,15 @@ def query_knowledge_base(client, query: str) -> Optional[Dict[str, Any]]:
         xml_string = response['output']['text']
         root = ET.fromstring(xml_string)
         directions = root.find("directions").text
+        origin_code: str | None = root.find("origin_code").text
         bldg_code = root.find("bldg_code").text
         print(bldg_code)
 
-        bldg_link = get_building_directions_link(bldg_code)
-        print(bldg_link)
+        bldg_link = get_building_directions_link(bldg_code, origin_code, "walking")
+        bldg_link2 = get_building_directions_link_by_name(bldg_code, origin_code, "walking")
+        print(bldg_link2)
 
-        frontend_output = f"{directions} \n\nDirections to building {bldg_code}: {bldg_link}"
+        frontend_output = f"{directions} \n\nDirections: {bldg_link2}"
 
         return {"output": {"text": frontend_output}}
     except Exception as e:
@@ -129,25 +134,10 @@ def main():
     with st.sidebar:
         st.header("⚙️ Settings")
         
-        # Agent mode toggle
-        use_agent = st.checkbox("🤖 Enable Agent Mode", value=True, help="Agent can use multiple tools like search, calculations, etc.")
-        
-        if use_agent:
-            st.markdown("**Available Tools:**")
-            st.write("• Knowledge Base Search")
-            st.write("• Current Time")
-            st.write("• Math Calculator")
-            st.write("• Text Analysis")
-        
         # Clear chat button
         if st.button("🗑️ Clear Chat"):
             st.session_state.messages = []
             st.rerun()
-        
-        # Configuration info
-        st.markdown("---")
-        st.markdown("**Current Settings:**")
-        st.write(f"Mode: {'Agent' if use_agent else 'Knowledge Base Only'}")
     
     
     # Display chat history
@@ -167,59 +157,41 @@ def main():
         
         # Generate and display assistant response
         with st.chat_message("assistant"):
-            if use_agent:
-                with st.spinner("Agent is thinking and using tools..."):
-                    # Use agent with tools
-                    response_text = process_with_agent(
-                        user_input, 
-                        st.session_state.agent_tools, 
-                        bedrock_runtime
-                    )
+            with st.spinner("Searching knowledge base..."):
+                # Direct knowledge base query
+                response = query_knowledge_base(
+                    bedrock_client, 
+                    user_input
+                )
+                
+                if response and 'output' in response and 'text' in response['output']:
+                    # Extract the generated text
+                    answer = response['output']['text']
                     
                     # Display the response
-                    st.markdown(response_text)
+                    st.markdown(answer)
+                    
+                    # Get citations if available
+                    citations = response.get('citations', [])
                     
                     # Add to message history
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": response_text
+                        "content": answer,
+                        "citations": citations
                     })
-            else:
-                with st.spinner("Searching knowledge base..."):
-                    # Direct knowledge base query
-                    response = query_knowledge_base(
-                        bedrock_client, 
-                        user_input
-                    )
                     
-                    if response and 'output' in response and 'text' in response['output']:
-                        # Extract the generated text
-                        answer = response['output']['text']
-                        
-                        # Display the response
-                        st.markdown(answer)
-                        
-                        # Get citations if available
-                        citations = response.get('citations', [])
-                        
-                        # Add to message history
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "content": answer,
-                            "citations": citations
-                        })
-                        
-                        # Display sources
-                        if citations:
-                            display_sources(citations)
-                    
-                    else:
-                        error_msg = "I couldn't generate a response. Please try rephrasing your question."
-                        st.error(error_msg)
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "content": error_msg
-                        })
+                    # Display sources
+                    if citations:
+                        display_sources(citations)
+                
+                else:
+                    error_msg = "I couldn't generate a response. Please try rephrasing your question."
+                    st.error(error_msg)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": error_msg
+                    })
 
 if __name__ == "__main__":
     main()
