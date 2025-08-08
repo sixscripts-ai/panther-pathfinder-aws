@@ -1,7 +1,7 @@
 import googlemaps
 from typing import Optional
 
-GOOGLE_API_KEY = "AIzaSyC0qTGv7tBQbkIhuwBAtG2bUiswc5rbZXQ"
+GOOGLE_API_KEY = ""
 HARTNELL_MAIN_CAMPUS = {
     "lat": 36.677737,   # Approx. lat of Hartnell College
     "lng": -121.658638  # Approx. long of Hartnell College
