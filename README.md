@@ -157,6 +157,8 @@ The application is modular and easy to extend:
 - [X] Gathered information uploaded to S3 buckets
 - [X] Python script developed to automatically generate Google Map link to destination
 - [X] Multilingual support added
+- [ ] Better map integration
+- [ ] Make the school databases more AI-accessible (right now, it's very user-focused, but data ingestion is difficult for AI)
 - [ ] Build on project to add scalability
 - [ ] Automate processes to make it easy to implement across campuses
 
