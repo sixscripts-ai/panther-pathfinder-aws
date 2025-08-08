@@ -147,6 +147,19 @@ The application is modular and easy to extend:
 - Adjust model parameters in `generate_response_with_rag()`
 - Add new sidebar controls for additional features
 
+### Current Limitations
+- Due to current LLM limitations, queries are only accurate up to two classes/locations
+
+### Roadmap
+- [X] RAG system setup using Amazon Bedrock Knowledge Bases
+- [X] Frontend developed using Streamlit
+- [X] Python script developed to gather information from Hartnell course catalog (failure of web scraper)
+- [X] Gathered information uploaded to S3 buckets
+- [X] Python script developed to automatically generate Google Map link to destination
+- [X] Multilingual support added
+- [ ] Build on project to add scalability
+- [ ] Automate processes to make it easy to implement across campuses
+
 ## Security Notes
 
 - Never commit AWS credentials to version control
