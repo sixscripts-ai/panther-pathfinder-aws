@@ -169,7 +169,7 @@ def query_knowledge_base(client, query: str) -> Optional[Dict[str, Any]]:
 
                                                    respond only in the following XML format and do not include any other text:
                                                     <response>
-                                                    <directions>[your natural language directions to the user. If and only if origin_location != destination_location, specify "exit through main entry"]</directions>
+                                                    <directions>[your natural language directions to the user.]</directions>
                                                     <origin_code>[Origin location code as a single uppercase letter or code]</origin_code>
                                                     <bldg_code>[Destination building code as a single uppercase letter or code]</bldg_code>
                                                     </response>'''

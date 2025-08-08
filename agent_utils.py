@@ -18,13 +18,29 @@ def create_agent_tools(bedrock_client) -> Dict[str, Callable]:
             response = bedrock_client.retrieve_and_generate(
                 input={'text': query},
                 retrieveAndGenerateConfiguration={
-                    'knowledgeBaseConfiguration': {
-                        'knowledgeBaseId': "Y4NJOU25DB",
-                        'modelArn': 'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0',
+                'knowledgeBaseConfiguration': {
+                    'generationConfiguration': {
+                        'promptTemplate': {
+                            'textPromptTemplate': '''You are a question answering agent designed to help the user get to one location to another. The user will provide you with their location and a question. Your job is to answer the user's question using only information from the database as concisely as possible. If the results do not contain information that can answer the question, please state that you could not find an exact answer to the question.
+
+                                                    When retrieving information about meeting locations, only answer based on hartnell/expanded_courses_all.html.
+
+                                                    When asked how to go from one place to another, give detailed instructions and refer to neighboring landmarks to help the user go to the destination.
+
+                                                    If the user does not specify the year and semester, prompt the user if clarification is needed. If the user mentions multiple classes, pick the semester in which they all occur.
+
+                                                    Here are the search results in numbered order:
+                                                    $search_results$
+
+                                                    $output_format_instructions$'''
+                        }
                     },
-                    'type': 'KNOWLEDGE_BASE'
-                }
-            )
+                    'knowledgeBaseId': 'Y4NJOU25DB' ,
+                    'modelArn': 'arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0',
+                },
+                'type': 'KNOWLEDGE_BASE'
+            }
+        )
             if response and 'output' in response:
                 return response['output']['text']
             return "No information found in knowledge base."
@@ -83,17 +99,16 @@ def process_with_agent(user_input: str, tools: Dict[str, Callable], bedrock_runt
 
 User query: "{user_input}"
 
-Analyze the query and determine which tools (if any) would be helpful. Then provide a comprehensive response.
+You are a question answering agent designed to help the user get to one location to another. The user will provide you with their location and a question. Your job is to answer the user's question using only information from the database as concisely as possible. If the results do not contain information that can answer the question, please state that you could not find an exact answer to the question.
 
-Rules:
-1. If the query is about company/domain specific info, use search_knowledge_base
-2. If they ask for time/date, use get_current_time
-3. If they want calculations, use calculate_math
-4. If they want text analysis, use analyze_text
-5. You can use multiple tools if needed
-6. Always provide a helpful final answer
+                                                    When asked how to go from one place to another, give detailed instructions and refer to neighboring landmarks to help the user go to the destination.
 
-Respond naturally and include tool results in your answer."""
+                                                    If the user does not specify the year and semester, prompt the user if clarification is needed. If the user mentions multiple classes, pick the semester in which they all occur.
+
+                                                    Here are the search results in numbered order:
+                                                    $search_results$
+
+                                                    $output_format_instructions$"""
 
     try:
         # Get agent decision from Claude
@@ -173,7 +188,9 @@ Please provide a helpful, comprehensive response that incorporates these tool re
             final_response_body = json.loads(final_response['body'].read())
             final_answer = final_response_body['content'][0]['text']
             
-            return f"{final_answer}\n\n---\n**Tool Usage:**\n{tool_output}"
+            # return f"{final_answer}\n\n---\n**Tool Usage:**\n{tool_output}"
+            return f"\n{tool_output}"
+      
         else:
             # No tools needed, just return agent thinking
             return agent_thinking
